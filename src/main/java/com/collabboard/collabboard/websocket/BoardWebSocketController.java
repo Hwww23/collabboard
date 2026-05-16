@@ -1,6 +1,7 @@
 package com.collabboard.collabboard.websocket;
 
 import com.collabboard.collabboard.dto.MoveTaskRequest;
+import com.collabboard.collabboard.dto.CreateTaskRequest;
 import com.collabboard.collabboard.dto.TaskDto;
 import com.collabboard.collabboard.security.JwtUtil;
 import com.collabboard.collabboard.service.BoardService;
@@ -66,6 +67,31 @@ public class BoardWebSocketController {
                 BoardEvent.Type.TASK_MOVED,
                 boardId,
                 updatedTask,
+                displayName
+        );
+
+        messagingTemplate.convertAndSend("/topic/board/" + boardId, event);
+    }
+
+    @MessageMapping("/board/{boardId}/task/create")
+    public void handleTaskCreate(
+            @DestinationVariable Long boardId,
+            @Header("token") String token,
+            CreateTaskRequest req) {
+
+        if (!jwtUtil.isTokenValid(token)) return;
+
+        Long userId = jwtUtil.extractUserId(token);
+        String displayName = userRepo.findById(userId)
+                .map(u -> u.getDisplayName())
+                .orElse("Unknown");
+
+        TaskDto task = boardService.createTask(boardId, req, userId);
+
+        BoardEvent event = new BoardEvent(
+                BoardEvent.Type.TASK_CREATED,
+                boardId,
+                task,
                 displayName
         );
 
